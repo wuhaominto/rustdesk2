@@ -177,7 +177,6 @@ pub enum Data {
         file_transfer_enabled: bool,
         restart: bool,
         recording: bool,
-        block_input: bool,
         from_switch: bool,
     },
     ChatMessage {
@@ -233,7 +232,7 @@ pub enum Data {
     Plugin(Plugin),
     #[cfg(windows)]
     SyncWinCpuUsage(Option<f64>),
-    FileTransferLog((String, String)),
+    FileTransferLog(String),
     #[cfg(windows)]
     ControlledSessionCount(usize),
 }

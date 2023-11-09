@@ -48,8 +48,6 @@ class _ConnectionTabPageState extends State<ConnectionTabPage> {
 
   late ToolbarState _toolbarState;
   String? peerId;
-  bool _isScreenRectSet = false;
-  int? _display;
 
   var connectionMap = RxList<Widget>.empty(growable: true);
 
@@ -59,12 +57,6 @@ class _ConnectionTabPageState extends State<ConnectionTabPage> {
     peerId = params['id'];
     final sessionId = params['session_id'];
     final tabWindowId = params['tab_window_id'];
-    final display = params['display'];
-    final displays = params['displays'];
-    final screenRect = parseParamScreenRect(params);
-    _isScreenRectSet = screenRect != null;
-    _display = display as int?;
-    tryMoveToScreenAndSetFullscreen(screenRect);
     if (peerId != null) {
       ConnectionTypeState.init(peerId!);
       tabController.onSelected = (id) {
@@ -88,8 +80,6 @@ class _ConnectionTabPageState extends State<ConnectionTabPage> {
           id: peerId!,
           sessionId: sessionId == null ? null : SessionID(sessionId),
           tabWindowId: tabWindowId,
-          display: display,
-          displays: displays?.cast<int>(),
           password: params['password'],
           toolbarState: _toolbarState,
           tabController: tabController,
@@ -119,18 +109,11 @@ class _ConnectionTabPageState extends State<ConnectionTabPage> {
         final switchUuid = args['switch_uuid'];
         final sessionId = args['session_id'];
         final tabWindowId = args['tab_window_id'];
-        final display = args['display'];
-        final displays = args['displays'];
-        final screenRect = parseParamScreenRect(args);
         windowOnTop(windowId());
-        tryMoveToScreenAndSetFullscreen(screenRect);
         if (tabController.length == 0) {
-          // Show the hidden window.
-          if (Platform.isMacOS && stateGlobal.closeOnFullscreen == true) {
+          if (Platform.isMacOS && stateGlobal.closeOnFullscreen) {
             stateGlobal.setFullscreen(true);
           }
-          // Reset the state
-          stateGlobal.closeOnFullscreen = null;
         }
         ConnectionTypeState.init(id);
         _toolbarState.setShow(
@@ -146,8 +129,6 @@ class _ConnectionTabPageState extends State<ConnectionTabPage> {
             id: id,
             sessionId: sessionId == null ? null : SessionID(sessionId),
             tabWindowId: tabWindowId,
-            display: display,
-            displays: displays?.cast<int>(),
             password: args['password'],
             toolbarState: _toolbarState,
             tabController: tabController,
@@ -167,15 +148,6 @@ class _ConnectionTabPageState extends State<ConnectionTabPage> {
           windowOnTop(windowId());
         }
         return jumpOk;
-      } else if (call.method == kWindowEventActiveDisplaySession) {
-        final args = jsonDecode(call.arguments);
-        final id = args['id'];
-        final display = args['display'];
-        final jumpOk = tabController.jumpToByKeyAndDisplay(id, display);
-        if (jumpOk) {
-          windowOnTop(windowId());
-        }
-        return jumpOk;
       } else if (call.method == kWindowEventGetRemoteList) {
         return tabController.state.value.tabs
             .map((e) => e.key)
@@ -188,37 +160,32 @@ class _ConnectionTabPageState extends State<ConnectionTabPage> {
             .join(';');
       } else if (call.method == kWindowEventGetCachedSessionData) {
         // Ready to show new window and close old tab.
-        final args = jsonDecode(call.arguments);
-        final id = args['id'];
-        final close = args['close'];
+        final peerId = call.arguments;
         try {
           final remotePage = tabController.state.value.tabs
-              .firstWhere((tab) => tab.key == id)
+              .firstWhere((tab) => tab.key == peerId)
               .page as RemotePage;
           returnValue = remotePage.ffi.ffiModel.cachedPeerData.toString();
         } catch (e) {
           debugPrint('Failed to get cached session data: $e');
         }
-        if (close && returnValue != null) {
-          closeSessionOnDispose[id] = false;
-          tabController.closeBy(id);
+        if (returnValue != null) {
+          closeSessionOnDispose[peerId] = false;
+          tabController.closeBy(peerId);
         }
       }
       _update_remote_count();
       return returnValue;
     });
-    if (!_isScreenRectSet) {
-      Future.delayed(Duration.zero, () {
-        restoreWindowPosition(
-          WindowType.RemoteDesktop,
-          windowId: windowId(),
-          peerId: tabController.state.value.tabs.isEmpty
-              ? null
-              : tabController.state.value.tabs[0].key,
-          display: _display,
-        );
-      });
-    }
+    Future.delayed(Duration.zero, () {
+      restoreWindowPosition(
+        WindowType.RemoteDesktop,
+        windowId: windowId(),
+        peerId: tabController.state.value.tabs.isEmpty
+            ? null
+            : tabController.state.value.tabs[0].key,
+      );
+    });
   }
 
   @override
@@ -386,7 +353,7 @@ class _ConnectionTabPageState extends State<ConnectionTabPage> {
             pi.platform == kPeerPlatformMacOS)) {
       menu.add(MenuEntryButton<String>(
         childBuilder: (TextStyle? style) => Text(
-          translate('Restart remote device'),
+          translate('Restart Remote Device'),
           style: style,
         ),
         proc: () => showRestartRemoteDevice(
@@ -465,7 +432,6 @@ class _ConnectionTabPageState extends State<ConnectionTabPage> {
           c++;
         }
       }
-
       loopCloseWindow();
     }
     ConnectionTypeState.delete(id);

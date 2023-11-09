@@ -15,14 +15,13 @@ import 'package:path_provider/path_provider.dart';
 import '../common.dart';
 import '../generated_bridge.dart';
 
-final class RgbaFrame extends Struct {
+class RgbaFrame extends Struct {
   @Uint32()
   external int len;
   external Pointer<Uint8> data;
 }
 
-typedef F3 = Pointer<Uint8> Function(Pointer<Utf8>, int);
-typedef F3Dart = Pointer<Uint8> Function(Pointer<Utf8>, Int32);
+typedef F3 = Pointer<Uint8> Function(Pointer<Utf8>);
 typedef HandleEvent = Future<void> Function(Map<String, dynamic> evt);
 
 /// FFI wrapper around the native Rust core.
@@ -81,12 +80,12 @@ class PlatformFFI {
   String translate(String name, String locale) =>
       _ffiBind.translate(name: name, locale: locale);
 
-  Uint8List? getRgba(SessionID sessionId, int display, int bufSize) {
+  Uint8List? getRgba(SessionID sessionId, int bufSize) {
     if (_session_get_rgba == null) return null;
     final sessionIdStr = sessionId.toString();
     var a = sessionIdStr.toNativeUtf8();
     try {
-      final buffer = _session_get_rgba!(a, display);
+      final buffer = _session_get_rgba!(a);
       if (buffer == nullptr) {
         return null;
       }
@@ -97,11 +96,12 @@ class PlatformFFI {
     }
   }
 
-  int getRgbaSize(SessionID sessionId, int display) =>
-      _ffiBind.sessionGetRgbaSize(sessionId: sessionId, display: display);
-  void nextRgba(SessionID sessionId, int display) => _ffiBind.sessionNextRgba(sessionId: sessionId, display: display);
-  void registerTexture(SessionID sessionId, int display, int ptr) =>
-      _ffiBind.sessionRegisterTexture(sessionId: sessionId, display: display, ptr: ptr);
+  int getRgbaSize(SessionID sessionId) =>
+      _ffiBind.sessionGetRgbaSize(sessionId: sessionId);
+  void nextRgba(SessionID sessionId) =>
+      _ffiBind.sessionNextRgba(sessionId: sessionId);
+  void registerTexture(SessionID sessionId, int ptr) =>
+      _ffiBind.sessionRegisterTexture(sessionId: sessionId, ptr: ptr);
 
   /// Init the FFI class, loads the native Rust core library.
   Future<void> init(String appType) async {
@@ -117,7 +117,7 @@ class PlatformFFI {
                     : DynamicLibrary.process();
     debugPrint('initializing FFI $_appType');
     try {
-      _session_get_rgba = dylib.lookupFunction<F3Dart, F3>("session_get_rgba");
+      _session_get_rgba = dylib.lookupFunction<F3, F3>("session_get_rgba");
       try {
         // SYSTEM user failed
         _dir = (await getApplicationDocumentsDirectory()).path;

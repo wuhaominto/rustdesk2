@@ -9,7 +9,6 @@ import 'package:flutter_hbb/common/widgets/dialog.dart';
 import 'package:flutter_hbb/consts.dart';
 import 'package:flutter_hbb/models/model.dart';
 import 'package:flutter_hbb/models/platform_model.dart';
-import 'package:flutter_hbb/models/desktop_render_texture.dart';
 import 'package:get/get.dart';
 
 bool isEditOsPassword = false;
@@ -91,7 +90,7 @@ List<TTextMenu> toolbarControls(BuildContext context, String id, FFI ffi) {
   v.add(
     TTextMenu(
       child: Row(children: [
-        Text(translate(pi.isHeadless ? 'OS Account' : 'OS Password')),
+        Text(translate(pi.is_headless ? 'OS Account' : 'OS Password')),
         Offstage(
           offstage: isDesktop,
           child: Icon(Icons.edit, color: MyTheme.accent).marginOnly(left: 12),
@@ -100,13 +99,13 @@ List<TTextMenu> toolbarControls(BuildContext context, String id, FFI ffi) {
       trailingIcon: Transform.scale(
         scale: 0.8,
         child: InkWell(
-          onTap: () => pi.isHeadless
+          onTap: () => pi.is_headless
               ? showSetOSAccount(sessionId, ffi.dialogManager)
               : handleOsPasswordEditIcon(sessionId, ffi.dialogManager),
           child: Icon(Icons.edit),
         ),
       ),
-      onPressed: () => pi.isHeadless
+      onPressed: () => pi.is_headless
           ? showSetOSAccount(sessionId, ffi.dialogManager)
           : handleOsPasswordAction(sessionId, ffi.dialogManager),
     ),
@@ -133,7 +132,7 @@ List<TTextMenu> toolbarControls(BuildContext context, String id, FFI ffi) {
   if (isDesktop) {
     v.add(
       TTextMenu(
-          child: Text(translate('Transfer file')),
+          child: Text(translate('Transfer File')),
           onPressed: () => connect(context, id, isFileTransfer: true)),
     );
   }
@@ -141,7 +140,7 @@ List<TTextMenu> toolbarControls(BuildContext context, String id, FFI ffi) {
   if (isDesktop) {
     v.add(
       TTextMenu(
-          child: Text(translate('TCP tunneling')),
+          child: Text(translate('TCP Tunneling')),
           onPressed: () => connect(context, id, isTcpTunneling: true)),
     );
   }
@@ -176,7 +175,7 @@ List<TTextMenu> toolbarControls(BuildContext context, String id, FFI ffi) {
           pi.platform == kPeerPlatformMacOS)) {
     v.add(
       TTextMenu(
-          child: Text(translate('Restart remote device')),
+          child: Text(translate('Restart Remote Device')),
           onPressed: () =>
               showRestartRemoteDevice(pi, id, sessionId, ffi.dialogManager)),
     );
@@ -191,7 +190,6 @@ List<TTextMenu> toolbarControls(BuildContext context, String id, FFI ffi) {
   }
   // blockUserInput
   if (ffi.ffiModel.keyboard &&
-      ffi.ffiModel.permissions['block_input'] != false &&
       pi.platform == kPeerPlatformWindows) // privacy-mode != true ??
   {
     v.add(TTextMenu(
@@ -210,8 +208,7 @@ List<TTextMenu> toolbarControls(BuildContext context, String id, FFI ffi) {
       ffiModel.keyboard &&
       pi.platform != kPeerPlatformAndroid &&
       pi.platform != kPeerPlatformMacOS &&
-      versionCmp(pi.version, '1.2.0') >= 0 &&
-      bind.peerGetDefaultSessionsCount(id: id) == 1) {
+      version_cmp(pi.version, '1.2.0') >= 0) {
     v.add(TTextMenu(
         child: Text(translate('Switch Sides')),
         onPressed: () =>
@@ -220,13 +217,15 @@ List<TTextMenu> toolbarControls(BuildContext context, String id, FFI ffi) {
   // refresh
   if (pi.version.isNotEmpty) {
     v.add(TTextMenu(
-      child: Text(translate('Refresh')),
-      onPressed: () => sessionRefreshVideo(sessionId, pi),
-    ));
+        child: Text(translate('Refresh')),
+        onPressed: () => bind.sessionRefresh(sessionId: sessionId)));
   }
   // record
+  var codecFormat = ffi.qualityMonitorModel.data.codecFormat;
   if (!isDesktop &&
-      (ffi.recordingModel.start || (perms["recording"] != false))) {
+      (ffi.recordingModel.start ||
+          (perms["recording"] != false &&
+              (codecFormat == "VP8" || codecFormat == "VP9")))) {
     v.add(TTextMenu(
         child: Row(
           children: [
@@ -378,7 +377,7 @@ Future<List<TToggleMenu>> toolbarDisplayToggle(
   // show remote cursor
   if (pi.platform != kPeerPlatformAndroid &&
       !ffi.canvasModel.cursorEmbedded &&
-      !pi.isWayland) {
+      !pi.is_wayland) {
     final state = ShowRemoteCursorState.find(id);
     final enabled = !ffiModel.viewOnly;
     final option = 'show-remote-cursor';
@@ -437,9 +436,9 @@ Future<List<TToggleMenu>> toolbarDisplayToggle(
         child: Text(translate('Mute'))));
   }
   // file copy and paste
-  if (perms['file'] != false &&
-      bind.mainHasFileClipboard() &&
-      pi.platformAdditions.containsKey(kPlatformAdditionsHasFileClipboard)) {
+  if (Platform.isWindows &&
+      pi.platform == kPeerPlatformWindows &&
+      perms['file'] != false) {
     final option = 'enable-file-transfer';
     final value =
         bind.sessionGetToggleOptionSync(sessionId: sessionId, arg: option);
@@ -489,8 +488,7 @@ Future<List<TToggleMenu>> toolbarDisplayToggle(
         value: rxValue.value,
         onChanged: (value) {
           if (value == null) return;
-          if (ffiModel.pi.currentDisplay != 0 &&
-              ffiModel.pi.currentDisplay != kAllDisplayValue) {
+          if (ffiModel.pi.currentDisplay != 0) {
             msgBox(sessionId, 'custom-nook-nocancel-hasclose', 'info',
                 'Please switch to Display 1 first', '', ffi.dialogManager);
             return;
@@ -514,56 +512,5 @@ Future<List<TToggleMenu>> toolbarDisplayToggle(
         },
         child: Text(translate('Swap control-command key'))));
   }
-
-  if (useTextureRender &&
-      pi.isSupportMultiDisplay &&
-      PrivacyModeState.find(id).isFalse &&
-      pi.displaysCount.value > 1 &&
-      bind.mainGetUserDefaultOption(key: kKeyShowMonitorsToolbar) == 'Y') {
-    final value =
-        bind.sessionGetDisplaysAsIndividualWindows(sessionId: ffi.sessionId) ==
-            'Y';
-    v.add(TToggleMenu(
-        value: value,
-        onChanged: (value) {
-          if (value == null) return;
-          bind.sessionSetDisplaysAsIndividualWindows(
-              sessionId: sessionId, value: value ? 'Y' : '');
-        },
-        child: Text(translate('Show displays as individual windows'))));
-  }
-
-  final screenList = await getScreenRectList();
-  if (useTextureRender && pi.isSupportMultiDisplay && screenList.length > 1) {
-    final value = bind.sessionGetUseAllMyDisplaysForTheRemoteSession(
-            sessionId: ffi.sessionId) ==
-        'Y';
-    v.add(TToggleMenu(
-        value: value,
-        onChanged: (value) {
-          if (value == null) return;
-          bind.sessionSetUseAllMyDisplaysForTheRemoteSession(
-              sessionId: sessionId, value: value ? 'Y' : '');
-        },
-        child: Text(translate('Use all my displays for the remote session'))));
-  }
-
-  // 444
-  final codec_format = ffi.qualityMonitorModel.data.codecFormat;
-  if (versionCmp(pi.version, "1.2.4") >= 0 &&
-      (codec_format == "AV1" || codec_format == "VP9")) {
-    final option = 'i444';
-    final value =
-        bind.sessionGetToggleOptionSync(sessionId: sessionId, arg: option);
-    v.add(TToggleMenu(
-        value: value,
-        onChanged: (value) async {
-          if (value == null) return;
-          await bind.sessionToggleOption(sessionId: sessionId, value: option);
-          bind.sessionChangePreferCodec(sessionId: sessionId);
-        },
-        child: Text(translate('True color (4:4:4)'))));
-  }
-
   return v;
 }

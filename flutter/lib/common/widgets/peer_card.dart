@@ -19,7 +19,7 @@ import 'dart:math' as math;
 typedef PopupMenuEntryBuilder = Future<List<mod_menu.PopupMenuEntry<String>>>
     Function(BuildContext);
 
-enum PeerUiType { grid, tile, list }
+enum PeerUiType { grid, list }
 
 final peerCardUiType = PeerUiType.grid.obs;
 
@@ -495,7 +495,7 @@ abstract class BasePeerCard extends StatelessWidget {
     return _connectCommonAction(
       context,
       id,
-      translate('Transfer file'),
+      translate('Transfer File'),
       isFileTransfer: true,
     );
   }
@@ -505,7 +505,7 @@ abstract class BasePeerCard extends StatelessWidget {
     return _connectCommonAction(
       context,
       id,
-      translate('TCP tunneling'),
+      translate('TCP Tunneling'),
       isTcpTunneling: true,
     );
   }
@@ -568,7 +568,7 @@ abstract class BasePeerCard extends StatelessWidget {
   MenuEntryBase<String> _createShortCutAction(String id) {
     return MenuEntryButton<String>(
       childBuilder: (TextStyle? style) => Text(
-        translate('Create desktop shortcut'),
+        translate('Create Desktop Shortcut'),
         style: style,
       ),
       proc: () {
@@ -600,7 +600,7 @@ abstract class BasePeerCard extends StatelessWidget {
       await _openNewConnInAction(id, 'Open in New Tab', kOptionOpenInTabs);
 
   _openInWindowsAction(String id) async => await _openNewConnInAction(
-      id, 'Open in new window', kOptionOpenInWindows);
+      id, 'Open in New Window', kOptionOpenInWindows);
 
   _openNewConnInOptAction(String id) async =>
       mainGetLocalBoolOptionSync(kOptionOpenNewConnInTabs)
@@ -818,7 +818,7 @@ abstract class BasePeerCard extends StatelessWidget {
   MenuEntryBase<String> _addToAb(Peer peer) {
     return MenuEntryButton<String>(
       childBuilder: (TextStyle? style) => Text(
-        translate('Add to address book'),
+        translate('Add to Address Book'),
         style: style,
       ),
       proc: () {

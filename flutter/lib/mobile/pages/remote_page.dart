@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -11,7 +10,7 @@ import 'package:flutter_hbb/models/chat_model.dart';
 import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
-import 'package:wakelock_plus/wakelock_plus.dart';
+import 'package:wakelock/wakelock.dart';
 
 import '../../common.dart';
 import '../../common/widgets/overlay.dart';
@@ -60,7 +59,7 @@ class _RemotePageState extends State<RemotePage> {
       gFFI.dialogManager
           .showLoading(translate('Connecting...'), onCancel: closeConnection);
     });
-    WakelockPlus.enable();
+    Wakelock.enable();
     _physicalFocusNode.requestFocus();
     gFFI.ffiModel.updateEventListener(sessionId, widget.id);
     gFFI.inputModel.listenToMouse(true);
@@ -88,7 +87,7 @@ class _RemotePageState extends State<RemotePage> {
     gFFI.dialogManager.dismissAll();
     await SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual,
         overlays: SystemUiOverlay.values);
-    await WakelockPlus.disable();
+    await Wakelock.disable();
     await keyboardSubscription.cancel();
     removeSharedStates(widget.id);
   }
@@ -235,7 +234,7 @@ class _RemotePageState extends State<RemotePage> {
         clientClose(sessionId, gFFI.dialogManager);
         return false;
       },
-      child: Scaffold(
+      child: getRawPointerAndKeyBody(Scaffold(
           // workaround for https://github.com/rustdesk/rustdesk/issues/3131
           floatingActionButtonLocation: keyboardIsVisible
               ? FABLocation(FloatingActionButtonLocation.endFloat, 0, -35)
@@ -281,7 +280,7 @@ class _RemotePageState extends State<RemotePage> {
                       : Offstage(),
                 ],
               )),
-          body: getRawPointerAndKeyBody(Overlay(
+          body: Overlay(
             initialEntries: [
               OverlayEntry(builder: (context) {
                 return Container(
@@ -364,10 +363,6 @@ class _RemotePageState extends State<RemotePage> {
                       ? []
                       : gFFI.ffiModel.isPeerAndroid
                           ? [
-                              IconButton(
-                                  color: Colors.white,
-                                  icon: Icon(Icons.keyboard),
-                                  onPressed: openKeyboard),
                               IconButton(
                                 color: Colors.white,
                                 icon: const Icon(Icons.build),
@@ -760,16 +755,14 @@ void showOptions(
   if (image != null) {
     displays.add(Padding(padding: const EdgeInsets.only(top: 8), child: image));
   }
-  if (pi.displays.length > 1 && pi.currentDisplay != kAllDisplayValue) {
+  if (pi.displays.length > 1) {
     final cur = pi.currentDisplay;
     final children = <Widget>[];
     for (var i = 0; i < pi.displays.length; ++i) {
       children.add(InkWell(
           onTap: () {
             if (i == cur) return;
-            gFFI.recordingModel.onClose();
-            bind.sessionSwitchDisplay(
-                sessionId: gFFI.sessionId, value: Int32List.fromList([i]));
+            bind.sessionSwitchDisplay(sessionId: gFFI.sessionId, value: i);
             gFFI.dialogManager.dismissAll();
           },
           child: Ink(

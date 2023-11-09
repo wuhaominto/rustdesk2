@@ -28,8 +28,7 @@ impl InvokeUiCM for SciterHandler {
                 client.audio,
                 client.file,
                 client.restart,
-                client.recording,
-                client.block_input
+                client.recording
             ),
         );
     }
@@ -64,7 +63,7 @@ impl InvokeUiCM for SciterHandler {
         );
     }
 
-    fn file_transfer_log(&self, _action: &str, _log: &str) {}
+    fn file_transfer_log(&self, _log: String) {}
 }
 
 impl SciterHandler {

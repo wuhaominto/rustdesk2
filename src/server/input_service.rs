@@ -1,6 +1,8 @@
 use super::*;
 #[cfg(target_os = "macos")]
 use crate::common::is_server;
+#[cfg(target_os = "linux")]
+use crate::common::IS_X11;
 use crate::input::*;
 #[cfg(target_os = "macos")]
 use dispatch::Queue;
@@ -15,7 +17,7 @@ use rdev::{self, EventType, Key as RdevKey, KeyCode, RawKey};
 use rdev::{CGEventSourceStateID, CGEventTapLocation, VirtualInput};
 use std::{
     convert::TryFrom,
-    ops::{Deref, DerefMut, Sub},
+    ops::Sub,
     sync::atomic::{AtomicBool, Ordering},
     thread,
     time::{self, Duration, Instant},
@@ -234,43 +236,18 @@ fn should_disable_numlock(evt: &KeyEvent) -> bool {
 
 pub const NAME_CURSOR: &'static str = "mouse_cursor";
 pub const NAME_POS: &'static str = "mouse_pos";
-#[derive(Clone)]
-pub struct MouseCursorService {
-    pub sp: ServiceTmpl<MouseCursorSub>,
-}
+pub type MouseCursorService = ServiceTmpl<MouseCursorSub>;
 
-impl Deref for MouseCursorService {
-    type Target = ServiceTmpl<MouseCursorSub>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.sp
-    }
-}
-
-impl DerefMut for MouseCursorService {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.sp
-    }
-}
-
-impl MouseCursorService {
-    pub fn new(name: String, need_snapshot: bool) -> Self {
-        Self {
-            sp: ServiceTmpl::<MouseCursorSub>::new(name, need_snapshot),
-        }
-    }
-}
-
-pub fn new_cursor() -> ServiceTmpl<MouseCursorSub> {
-    let svc = MouseCursorService::new(NAME_CURSOR.to_owned(), true);
-    ServiceTmpl::<MouseCursorSub>::repeat::<StateCursor, _, _>(&svc.clone(), 33, run_cursor);
-    svc.sp
+pub fn new_cursor() -> MouseCursorService {
+    let sp = MouseCursorService::new(NAME_CURSOR, true);
+    sp.repeat::<StateCursor, _>(33, run_cursor);
+    sp
 }
 
 pub fn new_pos() -> GenericService {
-    let svc = EmptyExtraFieldService::new(NAME_POS.to_owned(), false);
-    GenericService::repeat::<StatePos, _, _>(&svc.clone(), 33, run_pos);
-    svc.sp
+    let sp = GenericService::new(NAME_POS, false);
+    sp.repeat::<StatePos, _>(33, run_pos);
+    sp
 }
 
 #[inline]
@@ -281,7 +258,7 @@ fn update_last_cursor_pos(x: i32, y: i32) {
     }
 }
 
-fn run_pos(sp: EmptyExtraFieldService, state: &mut StatePos) -> ResultType<()> {
+fn run_pos(sp: GenericService, state: &mut StatePos) -> ResultType<()> {
     let (_, (x, y)) = *LATEST_SYS_CURSOR_POS.lock().unwrap();
     if x == INVALID_CURSOR_POS || y == INVALID_CURSOR_POS {
         return Ok(());
@@ -1011,6 +988,7 @@ pub async fn lock_screen() {
     crate::platform::lock_screen();
     }
     }
+    super::video_service::switch_to_primary().await;
 }
 
 pub fn handle_key(evt: &KeyEvent) {
@@ -1150,7 +1128,7 @@ fn map_keyboard_mode(evt: &KeyEvent) {
 
     // Wayland
     #[cfg(target_os = "linux")]
-    if !crate::platform::linux::is_x11() {
+    if !*IS_X11 {
         let mut en = ENIGO.lock().unwrap();
         let code = evt.chr() as u16;
 

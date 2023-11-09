@@ -9,7 +9,6 @@ import 'package:get/get.dart';
 import 'package:provider/provider.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 import 'package:window_manager/window_manager.dart';
-import 'package:flutter_hbb/models/peer_tab_model.dart';
 
 import '../../common.dart';
 import '../../models/peer_model.dart';
@@ -189,25 +188,12 @@ class _PeersViewState extends State<_PeersView> with WindowListener {
                 onVisibilityChanged: onVisibilityChanged,
                 child: widget.peerCardBuilder(peer),
               );
-              final windowWidth = MediaQuery.of(context).size.width;
-              // `Provider.of<PeerTabModel>(context)` will causes infinete loop.
-              // Because `gFFI.peerTabModel.setCurrentTabCachedPeers(peers)` will trigger `notifyListeners()`.
-              //
-              // No need to listen the currentTab change event.
-              // Because the currentTab change event will trigger the peers change event,
-              // and the peers change event will trigger _buildPeersView().
-              final currentTab = Provider.of<PeerTabModel>(context, listen: false).currentTab;
-              final hideAbTagsPanel = bind.mainGetLocalOption(key: "hideAbTagsPanel").isNotEmpty;
               return isDesktop
                   ? Obx(
                       () => SizedBox(
-                        width: peerCardUiType.value != PeerUiType.list
-                            ? 220
-                            : currentTab == PeerTabIndex.group.index || (currentTab == PeerTabIndex.ab.index && !hideAbTagsPanel)
-                              ? windowWidth - 390 :
-                                windowWidth - 227,
+                        width: 220,
                         height:
-                            peerCardUiType.value == PeerUiType.grid ? 140 : peerCardUiType.value != PeerUiType.list ? 42 : 45,
+                            peerCardUiType.value == PeerUiType.grid ? 140 : 42,
                         child: visibilityChild,
                       ),
                     )

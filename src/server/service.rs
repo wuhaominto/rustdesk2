@@ -1,19 +1,16 @@
 use super::*;
 use std::{
     collections::HashSet,
-    ops::{Deref, DerefMut},
     thread::{self, JoinHandle},
     time,
 };
 
 pub trait Service: Send + Sync {
-    fn name(&self) -> String;
+    fn name(&self) -> &'static str;
     fn on_subscribe(&self, sub: ConnInner);
     fn on_unsubscribe(&self, id: i32);
     fn is_subed(&self, id: i32) -> bool;
     fn join(&self);
-    fn get_option(&self, opt: &str) -> Option<String>;
-    fn set_option(&self, opt: &str, val: &str) -> Option<String>;
 }
 
 pub trait Subscriber: Default + Send + Sync + 'static {
@@ -23,13 +20,12 @@ pub trait Subscriber: Default + Send + Sync + 'static {
 
 #[derive(Default)]
 pub struct ServiceInner<T: Subscriber + From<ConnInner>> {
-    name: String,
+    name: &'static str,
     handle: Option<JoinHandle<()>>,
     subscribes: HashMap<i32, T>,
     new_subscribes: HashMap<i32, T>,
     active: bool,
     need_snapshot: bool,
-    options: HashMap<String, String>,
 }
 
 pub trait Reset {
@@ -41,35 +37,6 @@ pub struct ServiceSwap<T: Subscriber + From<ConnInner>>(ServiceTmpl<T>);
 pub type GenericService = ServiceTmpl<ConnInner>;
 pub const HIBERNATE_TIMEOUT: u64 = 30;
 pub const MAX_ERROR_TIMEOUT: u64 = 1_000;
-pub const SERVICE_OPTION_VALUE_TRUE: &str = "1";
-pub const SERVICE_OPTION_VALUE_FALSE: &str = "0";
-
-#[derive(Clone)]
-pub struct EmptyExtraFieldService {
-    pub sp: GenericService,
-}
-
-impl Deref for EmptyExtraFieldService {
-    type Target = ServiceTmpl<ConnInner>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.sp
-    }
-}
-
-impl DerefMut for EmptyExtraFieldService {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.sp
-    }
-}
-
-impl EmptyExtraFieldService {
-    pub fn new(name: String, need_snapshot: bool) -> Self {
-        Self {
-            sp: GenericService::new(name, need_snapshot),
-        }
-    }
-}
 
 impl<T: Subscriber + From<ConnInner>> ServiceInner<T> {
     fn send_new_subscribes(&mut self, msg: Arc<Message>) {
@@ -93,8 +60,8 @@ impl<T: Subscriber + From<ConnInner>> ServiceInner<T> {
 
 impl<T: Subscriber + From<ConnInner>> Service for ServiceTmpl<T> {
     #[inline]
-    fn name(&self) -> String {
-        self.0.read().unwrap().name.clone()
+    fn name(&self) -> &'static str {
+        self.0.read().unwrap().name
     }
 
     fn is_subed(&self, id: i32) -> bool {
@@ -129,18 +96,6 @@ impl<T: Subscriber + From<ConnInner>> Service for ServiceTmpl<T> {
             }
         }
     }
-
-    fn get_option(&self, opt: &str) -> Option<String> {
-        self.0.read().unwrap().options.get(opt).cloned()
-    }
-
-    fn set_option(&self, opt: &str, val: &str) -> Option<String> {
-        self.0
-            .write()
-            .unwrap()
-            .options
-            .insert(opt.to_string(), val.to_string())
-    }
 }
 
 impl<T: Subscriber + From<ConnInner>> Clone for ServiceTmpl<T> {
@@ -150,28 +105,13 @@ impl<T: Subscriber + From<ConnInner>> Clone for ServiceTmpl<T> {
 }
 
 impl<T: Subscriber + From<ConnInner>> ServiceTmpl<T> {
-    pub fn new(name: String, need_snapshot: bool) -> Self {
+    pub fn new(name: &'static str, need_snapshot: bool) -> Self {
         Self(Arc::new(RwLock::new(ServiceInner::<T> {
             name,
             active: true,
             need_snapshot,
             ..Default::default()
         })))
-    }
-
-    #[inline]
-    pub fn is_option_true(&self, opt: &str) -> bool {
-        self.get_option(opt)
-            .map_or(false, |v| v == SERVICE_OPTION_VALUE_TRUE)
-    }
-
-    #[inline]
-    pub fn set_option_bool(&self, opt: &str, val: bool) {
-        if val {
-            self.set_option(opt, SERVICE_OPTION_VALUE_TRUE);
-        } else {
-            self.set_option(opt, SERVICE_OPTION_VALUE_FALSE);
-        }
     }
 
     #[inline]
@@ -249,15 +189,14 @@ impl<T: Subscriber + From<ConnInner>> ServiceTmpl<T> {
         }
     }
 
-    pub fn repeat<S, F, Svc>(svc: &Svc, interval_ms: u64, callback: F)
+    pub fn repeat<S, F>(&self, interval_ms: u64, callback: F)
     where
-        F: 'static + FnMut(Svc, &mut S) -> ResultType<()> + Send,
+        F: 'static + FnMut(Self, &mut S) -> ResultType<()> + Send,
         S: 'static + Default + Reset,
-        Svc: 'static + Clone + Send + DerefMut<Target = ServiceTmpl<T>>,
     {
         let interval = time::Duration::from_millis(interval_ms);
         let mut callback = callback;
-        let sp = svc.clone();
+        let sp = self.clone();
         let thread = thread::spawn(move || {
             let mut state = S::default();
             let mut may_reset = false;
@@ -284,15 +223,14 @@ impl<T: Subscriber + From<ConnInner>> ServiceTmpl<T> {
             }
             log::info!("Service {} exit", sp.name());
         });
-        svc.0.write().unwrap().handle = Some(thread);
+        self.0.write().unwrap().handle = Some(thread);
     }
 
-    pub fn run<F, Svc>(svc: &Svc, callback: F)
+    pub fn run<F>(&self, callback: F)
     where
-        F: 'static + FnMut(Svc) -> ResultType<()> + Send,
-        Svc: 'static + Clone + Send + DerefMut<Target = ServiceTmpl<T>>,
+        F: 'static + FnMut(Self) -> ResultType<()> + Send,
     {
-        let sp = svc.clone();
+        let sp = self.clone();
         let mut callback = callback;
         let thread = thread::spawn(move || {
             let mut error_timeout = HIBERNATE_TIMEOUT;
@@ -321,7 +259,7 @@ impl<T: Subscriber + From<ConnInner>> ServiceTmpl<T> {
             }
             log::info!("Service {} exit", sp.name());
         });
-        svc.0.write().unwrap().handle = Some(thread);
+        self.0.write().unwrap().handle = Some(thread);
     }
 
     #[inline]

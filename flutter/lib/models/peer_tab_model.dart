@@ -22,10 +22,10 @@ class PeerTabModel with ChangeNotifier {
   int get currentTab => _currentTab;
   int _currentTab = 0; // index in tabNames
   List<String> tabNames = [
-    'Recent sessions',
+    'Recent Sessions',
     'Favorites',
     'Discovered',
-    'Address book',
+    'Address Book',
     'Group',
   ];
   final List<IconData> icons = [

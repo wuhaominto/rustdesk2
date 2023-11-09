@@ -44,6 +44,7 @@ import java.nio.ByteBuffer
 import kotlin.math.max
 import kotlin.math.min
 
+
 const val DEFAULT_NOTIFY_TITLE = "RustDesk"
 const val DEFAULT_NOTIFY_TEXT = "Service is running"
 const val DEFAULT_NOTIFY_ID = 1
@@ -58,7 +59,7 @@ const val VIDEO_KEY_BIT_RATE = 1024_000
 const val VIDEO_KEY_FRAME_RATE = 30
 
 // audio const
-const val AUDIO_ENCODING = AudioFormat.ENCODING_PCM_FLOAT //  ENCODING_OPUS need API 30
+const val AUDIO_ENCODING = AudioFormat.ENCODING_PCM_16BIT //  ENCODING_OPUS need API 30
 const val AUDIO_SAMPLE_RATE = 48000
 const val AUDIO_CHANNEL_MASK = AudioFormat.CHANNEL_IN_STEREO
 
@@ -91,12 +92,6 @@ class MainService : Service() {
                 }
             }
         }
-    }
-
-    @Keep
-    @RequiresApi(Build.VERSION_CODES.N)
-    fun rustKeyEventInput(input: ByteArray) {
-        InputService.ctx?.onKeyEvent(input)
     }
 
     @Keep

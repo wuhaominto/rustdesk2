@@ -28,6 +28,7 @@ import 'consts.dart';
 import 'mobile/pages/home_page.dart';
 import 'mobile/pages/server_page.dart';
 import 'models/platform_model.dart';
+import 'home_page2.dart';
 
 /// Basic window and launch properties.
 int? kWindowId;
@@ -156,7 +157,6 @@ void runMobileApp() async {
   await Future.wait([gFFI.abModel.loadCache(), gFFI.groupModel.loadCache()]);
   gFFI.userModel.refreshCurrentUser();
   runApp(App());
-  await initUniLinks();
 }
 
 void runMultiWindow(
@@ -199,16 +199,8 @@ void runMultiWindow(
   }
   switch (appType) {
     case kAppTypeDesktopRemote:
-      // If screen rect is set, the window will be moved to the target screen and then set fullscreen.
-      if (argument['screen_rect'] == null) {
-        // display can be used to control the offset of the window.
-        await restoreWindowPosition(
-          WindowType.RemoteDesktop,
-          windowId: kWindowId!,
-          peerId: argument['id'] as String?,
-          display: argument['display'] as int?,
-        );
-      }
+      await restoreWindowPosition(WindowType.RemoteDesktop,
+          windowId: kWindowId!, peerId: argument['id'] as String?);
       break;
     case kAppTypeDesktopFileTransfer:
       await restoreWindowPosition(WindowType.FileTransfer,
@@ -414,7 +406,7 @@ class _AppState extends State<App> {
               ? const DesktopTabPage()
               : isWeb
                   ? WebHomePage()
-                  : HomePage(),
+                  : HomePage2(),
           localizationsDelegates: const [
             GlobalMaterialLocalizations.delegate,
             GlobalWidgetsLocalizations.delegate,

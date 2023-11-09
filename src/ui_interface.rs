@@ -2,14 +2,14 @@
 use hbb_common::password_security;
 use hbb_common::{
     allow_err,
-    bytes::Bytes,
     config::{self, Config, LocalConfig, PeerConfig},
+    directories_next, log, tokio,
+};
+use hbb_common::{
+    bytes::Bytes,
     config::{CONNECT_TIMEOUT, RENDEZVOUS_PORT},
-    directories_next,
     futures::future::join_all,
-    log,
     rendezvous_proto::*,
-    tokio,
 };
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 use hbb_common::{
@@ -17,10 +17,9 @@ use hbb_common::{
     tokio::{sync::mpsc, time},
 };
 use serde_derive::Serialize;
-#[cfg(not(any(target_os = "android", target_os = "ios")))]
-use std::process::Child;
 use std::{
     collections::HashMap,
+    process::Child,
     sync::{Arc, Mutex},
 };
 
@@ -32,7 +31,6 @@ use crate::ipc;
 
 type Message = RendezvousMessage;
 
-#[cfg(not(any(target_os = "android", target_os = "ios")))]
 pub type Children = Arc<Mutex<(bool, HashMap<(String, String), Child>)>>;
 
 #[derive(Clone, Debug, Serialize)]
@@ -596,13 +594,7 @@ pub fn current_is_wayland() -> bool {
 
 #[inline]
 pub fn get_new_version() -> String {
-    (*SOFTWARE_UPDATE_URL
-        .lock()
-        .unwrap()
-        .rsplit('/')
-        .next()
-        .unwrap_or(""))
-    .to_string()
+    (*SOFTWARE_UPDATE_URL.lock().unwrap().rsplit('/').next().unwrap_or("")).to_string()
 }
 
 #[inline]
@@ -1007,8 +999,7 @@ async fn check_connect_status_(reconnect: bool, rx: mpsc::UnboundedReceiver<ipc:
     let mut mouse_time = 0;
     #[cfg(not(feature = "flutter"))]
     let mut id = "".to_owned();
-    #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
-    #[allow(unused_mut, dead_code)]
+    #[cfg(target_os = "windows")]
     let mut enable_file_transfer = "".to_owned();
 
     loop {
@@ -1031,13 +1022,7 @@ async fn check_connect_status_(reconnect: bool, rx: mpsc::UnboundedReceiver<ipc:
                                 *OPTIONS.lock().unwrap() = v;
                                 *OPTION_SYNCED.lock().unwrap() = true;
 
-                                #[cfg(any(
-                                        target_os = "windows",
-                                        all(
-                                            any(target_os="linux", target_os = "macos"),
-                                            feature = "unix-file-copy-paste"
-                                            )
-                                        ))]
+                                #[cfg(target_os="windows")]
                                 {
                                     let b = OPTIONS.lock().unwrap().get("enable-file-transfer").map(|x| x.to_string()).unwrap_or_default();
                                     if b != enable_file_transfer {
@@ -1256,17 +1241,10 @@ async fn check_id(
 }
 
 // if it's relay id, return id processed, otherwise return original id
-pub fn handle_relay_id(id: &str) -> &str {
+pub fn handle_relay_id(id: String) -> String {
     if id.ends_with(r"\r") || id.ends_with(r"/r") {
-        &id[0..id.len() - 2]
+        id[0..id.len() - 2].to_string()
     } else {
         id
     }
-}
-
-pub fn support_remove_wallpaper() -> bool {
-    #[cfg(any(target_os = "windows", target_os = "linux"))]
-    return crate::platform::WallPaperRemover::support();
-    #[cfg(not(any(target_os = "windows", target_os = "linux")))]
-    return false;
 }

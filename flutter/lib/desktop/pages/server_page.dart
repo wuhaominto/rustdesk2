@@ -8,7 +8,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_hbb/consts.dart';
 import 'package:flutter_hbb/desktop/widgets/tabbar_widget.dart';
 import 'package:flutter_hbb/models/chat_model.dart';
-import 'package:flutter_hbb/models/cm_file_model.dart';
 import 'package:flutter_hbb/utils/platform_channel.dart';
 import 'package:get/get.dart';
 import 'package:percent_indicator/linear_percent_indicator.dart';
@@ -483,8 +482,8 @@ class _CmHeaderState extends State<_CmHeader>
                     client.type_() != ClientType.file),
             child: IconButton(
               onPressed: () => checkClickTime(client.id, () {
-                if (client.type_() == ClientType.file) {
-                  gFFI.chatModel.toggleCMFilePage();
+                if (client.type_() != ClientType.file) {
+                  gFFI.chatModel.toggleCMSidePage();
                 } else {
                   gFFI.chatModel
                       .toggleCMChatPage(MessageKey(client.peerId, client.id));
@@ -520,7 +519,6 @@ class _PrivilegeBoardState extends State<_PrivilegeBoard> {
       Function(bool)? onTap, String tooltipText) {
     return Tooltip(
       message: "$tooltipText: ${enabled ? "ON" : "OFF"}",
-      waitDuration: Duration.zero,
       child: Container(
         decoration: BoxDecoration(
           color: enabled ? MyTheme.accent : Colors.grey[700],
@@ -537,6 +535,7 @@ class _PrivilegeBoardState extends State<_PrivilegeBoard> {
                 child: Icon(
                   iconData,
                   color: Colors.white,
+                  size: 32,
                 ),
               ),
             ],
@@ -548,11 +547,9 @@ class _PrivilegeBoardState extends State<_PrivilegeBoard> {
 
   @override
   Widget build(BuildContext context) {
-    final crossAxisCount = 4;
-    final spacing = 10.0;
     return Container(
       width: double.infinity,
-      height: 160.0,
+      height: 200.0,
       margin: EdgeInsets.all(5.0),
       padding: EdgeInsets.all(5.0),
       decoration: BoxDecoration(
@@ -577,10 +574,10 @@ class _PrivilegeBoardState extends State<_PrivilegeBoard> {
           ).marginOnly(left: 4.0, bottom: 8.0),
           Expanded(
             child: GridView.count(
-              crossAxisCount: crossAxisCount,
-              padding: EdgeInsets.symmetric(horizontal: spacing),
-              mainAxisSpacing: spacing,
-              crossAxisSpacing: spacing,
+              crossAxisCount: 3,
+              padding: EdgeInsets.symmetric(horizontal: 20.0),
+              mainAxisSpacing: 20.0,
+              crossAxisSpacing: 20.0,
               children: [
                 buildPermissionIcon(
                   client.keyboard,
@@ -592,7 +589,7 @@ class _PrivilegeBoardState extends State<_PrivilegeBoard> {
                       client.keyboard = enabled;
                     });
                   },
-                  translate('Enable keyboard/mouse'),
+                  translate('Allow using keyboard and mouse'),
                 ),
                 buildPermissionIcon(
                   client.clipboard,
@@ -604,7 +601,7 @@ class _PrivilegeBoardState extends State<_PrivilegeBoard> {
                       client.clipboard = enabled;
                     });
                   },
-                  translate('Enable clipboard'),
+                  translate('Allow using clipboard'),
                 ),
                 buildPermissionIcon(
                   client.audio,
@@ -616,7 +613,7 @@ class _PrivilegeBoardState extends State<_PrivilegeBoard> {
                       client.audio = enabled;
                     });
                   },
-                  translate('Enable audio'),
+                  translate('Allow hearing sound'),
                 ),
                 buildPermissionIcon(
                   client.file,
@@ -628,7 +625,7 @@ class _PrivilegeBoardState extends State<_PrivilegeBoard> {
                       client.file = enabled;
                     });
                   },
-                  translate('Enable file copy and paste'),
+                  translate('Allow file copy and paste'),
                 ),
                 buildPermissionIcon(
                   client.restart,
@@ -640,7 +637,7 @@ class _PrivilegeBoardState extends State<_PrivilegeBoard> {
                       client.restart = enabled;
                     });
                   },
-                  translate('Enable remote restart'),
+                  translate('Allow remote restart'),
                 ),
                 buildPermissionIcon(
                   client.recording,
@@ -652,24 +649,8 @@ class _PrivilegeBoardState extends State<_PrivilegeBoard> {
                       client.recording = enabled;
                     });
                   },
-                  translate('Enable recording session'),
-                ),
-                // only windows support block input
-                if (Platform.isWindows)
-                  buildPermissionIcon(
-                    client.blockInput,
-                    Icons.block,
-                    (enabled) {
-                      bind.cmSwitchPermission(
-                          connId: client.id,
-                          name: "block_input",
-                          enabled: enabled);
-                      setState(() {
-                        client.blockInput = enabled;
-                      });
-                    },
-                    translate('Enable blocking user input'),
-                  )
+                  translate('Allow recording session'),
+                )
               ],
             ),
           ),
@@ -994,49 +975,6 @@ class __FileTransferLogPageState extends State<_FileTransferLogPage> {
     );
   }
 
-  iconLabel(CmFileLog item) {
-    switch (item.action) {
-      case CmFileAction.none:
-        return Container();
-      case CmFileAction.localToRemote:
-      case CmFileAction.remoteToLocal:
-        return Column(
-          children: [
-            Transform.rotate(
-              angle: item.action == CmFileAction.remoteToLocal ? 0 : pi,
-              child: SvgPicture.asset(
-                "assets/arrow.svg",
-                color: Theme.of(context).tabBarTheme.labelColor,
-              ),
-            ),
-            Text(item.action == CmFileAction.remoteToLocal
-                ? translate('Send')
-                : translate('Receive'))
-          ],
-        );
-      case CmFileAction.remove:
-        return Column(
-          children: [
-            Icon(
-              Icons.delete,
-              color: Theme.of(context).tabBarTheme.labelColor,
-            ),
-            Text(translate('Delete'))
-          ],
-        );
-      case CmFileAction.createDir:
-        return Column(
-          children: [
-            Icon(
-              Icons.create_new_folder,
-              color: Theme.of(context).tabBarTheme.labelColor,
-            ),
-            Text(translate('Create Folder'))
-          ],
-        );
-    }
-  }
-
   Widget statusList() {
     return PreferredSize(
       preferredSize: const Size(200, double.infinity),
@@ -1045,7 +983,7 @@ class __FileTransferLogPageState extends State<_FileTransferLogPage> {
           child: Obx(
             () {
               final jobTable = gFFI.cmFileModel.currentJobTable;
-              statusListView(List<CmFileLog> jobs) => ListView.builder(
+              statusListView(List<JobProgress> jobs) => ListView.builder(
                     controller: ScrollController(),
                     itemBuilder: (BuildContext context, int index) {
                       final item = jobs[index];
@@ -1060,7 +998,22 @@ class __FileTransferLogPageState extends State<_FileTransferLogPage> {
                                 children: [
                                   SizedBox(
                                     width: 50,
-                                    child: iconLabel(item),
+                                    child: Column(
+                                      children: [
+                                        Transform.rotate(
+                                          angle: item.isRemoteToLocal ? 0 : pi,
+                                          child: SvgPicture.asset(
+                                            "assets/arrow.svg",
+                                            color: Theme.of(context)
+                                                .tabBarTheme
+                                                .labelColor,
+                                          ),
+                                        ),
+                                        Text(item.isRemoteToLocal
+                                            ? translate('Send')
+                                            : translate('Receive'))
+                                      ],
+                                    ),
                                   ).paddingOnly(left: 15),
                                   const SizedBox(
                                     width: 16.0,
@@ -1095,9 +1048,8 @@ class __FileTransferLogPageState extends State<_FileTransferLogPage> {
                                             ),
                                           ),
                                         Offstage(
-                                          offstage: !(item.isTransfer() &&
-                                              item.state !=
-                                                  JobState.inProgress),
+                                          offstage:
+                                              item.state == JobState.inProgress,
                                           child: Text(
                                             translate(
                                               item.display(),

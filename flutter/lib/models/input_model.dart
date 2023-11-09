@@ -552,22 +552,22 @@ class InputModel {
     return v;
   }
 
-  Offset setNearestEdge(double x, double y, Rect rect) {
-    double left = x - rect.left;
-    double right = rect.right - 1 - x;
-    double top = y - rect.top;
-    double bottom = rect.bottom - 1 - y;
+  Offset setNearestEdge(double x, double y, Display d) {
+    double left = x - d.x;
+    double right = d.x + d.width - 1 - x;
+    double top = y - d.y;
+    double bottom = d.y + d.height - 1 - y;
     if (left < right && left < top && left < bottom) {
-      x = rect.left;
+      x = d.x;
     }
     if (right < left && right < top && right < bottom) {
-      x = rect.right - 1;
+      x = d.x + d.width - 1;
     }
     if (top < left && top < right && top < bottom) {
-      y = rect.top;
+      y = d.y;
     }
     if (bottom < left && bottom < right && bottom < top) {
-      y = rect.bottom - 1;
+      y = d.y + d.height - 1;
     }
     return Offset(x, y);
   }
@@ -711,12 +711,9 @@ class InputModel {
     final nearThr = 3;
     var nearRight = (canvasModel.size.width - x) < nearThr;
     var nearBottom = (canvasModel.size.height - y) < nearThr;
-    final rect = ffiModel.rect;
-    if (rect == null) {
-      return null;
-    }
-    final imageWidth = rect.width * canvasModel.scale;
-    final imageHeight = rect.height * canvasModel.scale;
+    final d = ffiModel.display;
+    final imageWidth = d.width * canvasModel.scale;
+    final imageHeight = d.height * canvasModel.scale;
     if (canvasModel.scrollStyle == ScrollStyle.scrollbar) {
       x += imageWidth * canvasModel.scrollX;
       y += imageHeight * canvasModel.scrollY;
@@ -744,11 +741,11 @@ class InputModel {
         y += step;
       }
     }
-    x += rect.left;
-    y += rect.top;
+    x += d.x;
+    y += d.y;
 
     if (onExit) {
-      final pos = setNearestEdge(x, y, rect);
+      final pos = setNearestEdge(x, y, d);
       x = pos.dx;
       y = pos.dy;
     }
@@ -764,10 +761,10 @@ class InputModel {
       return null;
     }
 
-    int minX = rect.left.toInt();
-    int maxX = (rect.left + rect.width).toInt() - 1;
-    int minY = rect.top.toInt();
-    int maxY = (rect.top + rect.height).toInt() - 1;
+    int minX = d.x.toInt();
+    int maxX = (d.x + d.width).toInt() - 1;
+    int minY = d.y.toInt();
+    int maxY = (d.y + d.height).toInt() - 1;
     evtX = trySetNearestRange(evtX, minX, maxX, 5);
     evtY = trySetNearestRange(evtY, minY, maxY, 5);
     if (kind == kPointerEventKindMouse) {

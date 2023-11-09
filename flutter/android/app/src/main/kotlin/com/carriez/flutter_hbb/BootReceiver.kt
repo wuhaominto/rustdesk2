@@ -17,7 +17,7 @@ class BootReceiver : BroadcastReceiver() {
     private val logTag = "tagBootReceiver"
 
     override fun onReceive(context: Context, intent: Intent) {
-        Log.d(logTag, "onReceive ${intent.action}")
+        Log.d(logTag, "Sting onReceive ${intent.action}")
 
         if (Intent.ACTION_BOOT_COMPLETED == intent.action || DEBUG_BOOT_COMPLETED == intent.action) {
             // check SharedPreferences config

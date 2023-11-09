@@ -1,4 +1,4 @@
-#[cfg(windows)]
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 use crate::client::translate;
 #[cfg(not(debug_assertions))]
 #[cfg(not(any(target_os = "android", target_os = "ios")))]

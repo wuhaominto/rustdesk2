@@ -10,11 +10,7 @@ customImageQualityWidget(
     required double initFps,
     required Function(double) setQuality,
     required Function(double) setFps,
-    required bool showFps,
-    required bool showMoreQuality}) {
-  if (!showMoreQuality && initQuality > 100) {
-    initQuality = 50;
-  }
+    required bool showFps}) {
   final qualityValue = initQuality.obs;
   final fpsValue = initFps.obs;
 
@@ -73,7 +69,7 @@ customImageQualityWidget(
                     style: const TextStyle(fontSize: 15),
                   )),
               // mobile doesn't have enough space
-              if (showMoreQuality && !isMobile)
+              if (!isMobile)
                 Expanded(
                     flex: 1,
                     child: Row(
@@ -89,7 +85,7 @@ customImageQualityWidget(
                     ))
             ],
           )),
-      if (showMoreQuality && isMobile)
+      if (isMobile)
         Obx(() => Row(
               children: [
                 Expanded(
@@ -164,8 +160,7 @@ customImageQualitySetting() {
       setFps: (v) {
         bind.mainSetUserDefaultOption(key: fpsKey, value: v.toString());
       },
-      showFps: true,
-      showMoreQuality: true);
+      showFps: true);
 }
 
 Future<bool> setServerConfig(
@@ -270,7 +265,7 @@ List<Widget> ServerConfigImportExportWidgets(
 
   return [
     Tooltip(
-      message: translate('Import server config'),
+      message: translate('Import Server Config'),
       child: IconButton(
           icon: Icon(Icons.paste, color: Colors.grey), onPressed: import),
     ),
