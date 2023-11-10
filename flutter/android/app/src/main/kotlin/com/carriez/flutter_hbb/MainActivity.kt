@@ -70,7 +70,7 @@ class MainActivity : FlutterActivity() {
     }
 
     override fun onDestroy() {
-        Log.e(logTag, "onDestroy test")
+        Log.e(logTag, "onDestroy")
         mainService?.let {
             unbindService(serviceConnection)
         }
@@ -91,10 +91,8 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun initFlutterChannel(flutterMethodChannel: MethodChannel) {
-        Log.d(logTag, "Sting initFlutterChannel")
         flutterMethodChannel.setMethodCallHandler { call, result ->
             // make sure result will be invoked, otherwise flutter will await forever
-            Log.d(logTag,"Sting method:${call.method} arguments:${call.arguments}")
             when (call.method) {
                 "init_service" -> {
                     Intent(activity, MainService::class.java).also {
@@ -217,25 +215,6 @@ class MainActivity : FlutterActivity() {
                         result.success(true)
                     } else {
                         result.success(false)
-                    }
-                }
-                "send_broadcast" -> {
-                    try {
-                        if (call.arguments is String) {
-                            val mapValue = call.arguments as String
-                            val mapValues = mapValue.split(",")
-                            if (mapValues.size == 2) {
-                                val id = mapValues[0]
-                                val pass = mapValues[1]
-                                Log.d(logTag,"Sting sendBroadcast id$id pass:$pass")
-                                val intent = Intent("com.skyway.client.rust.DATA")
-                                intent.putExtra("ID", id)
-                                intent.putExtra("Password", pass)
-                                sendBroadcast(intent)
-                            }
-                        }
-                    } finally {
-                        result.success(true)
                     }
                 }
                 else -> {

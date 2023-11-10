@@ -8,7 +8,7 @@ import 'package:flutter_hbb/main.dart';
 import 'package:flutter_hbb/models/chat_model.dart';
 import 'package:flutter_hbb/models/platform_model.dart';
 import 'package:get/get.dart';
-import 'package:wakelock/wakelock.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../common.dart';
@@ -79,10 +79,12 @@ class ServerModel with ChangeNotifier {
 
   setVerificationMethod(String method) async {
     await bind.mainSetOption(key: "verification-method", value: method);
+    /*
     if (method != kUsePermanentPassword) {
       await bind.mainSetOption(
           key: 'allow-hide-cm', value: bool2option('allow-hide-cm', false));
     }
+    */
   }
 
   String get temporaryPasswordLength {
@@ -99,10 +101,12 @@ class ServerModel with ChangeNotifier {
 
   setApproveMode(String mode) async {
     await bind.mainSetOption(key: 'approve-mode', value: mode);
+    /*
     if (mode != 'password') {
       await bind.mainSetOption(
           key: 'allow-hide-cm', value: bool2option('allow-hide-cm', false));
     }
+    */
   }
 
   TextEditingController get serverId => _serverId;
@@ -116,7 +120,7 @@ class ServerModel with ChangeNotifier {
   WeakReference<FFI> parent;
 
   ServerModel(this.parent) {
-    _emptyIdShow = translate("Generating .......");
+    _emptyIdShow = translate("Generating ...");
     _serverId = IDTextEditingController(text: _emptyIdShow);
 
     /*
@@ -380,7 +384,7 @@ class ServerModel with ChangeNotifier {
     await bind.mainStartService();
     updateClientState();
     if (Platform.isAndroid) {
-      Wakelock.enable();
+      WakelockPlus.enable();
     }
   }
 
@@ -393,7 +397,7 @@ class ServerModel with ChangeNotifier {
     notifyListeners();
     if (!Platform.isLinux) {
       // current linux is not supported
-      Wakelock.disable();
+      WakelockPlus.disable();
     }
   }
 
@@ -409,21 +413,11 @@ class ServerModel with ChangeNotifier {
   }
 
   fetchID() async {
-    // _serverId.id = 'QASEI804ZB00064';
-    // print('set new id:${_serverId.id}');
-    // bind.mainChangeId(newId: _serverId.id);
-    // var status = await bind.mainGetAsyncStatus();
-    // print('set id status:$status');
-    // while (status == " ") {
-    //   await Future.delayed(const Duration(milliseconds: 100));
-    //   status = await bind.mainGetAsyncStatus();
-    // }
-    // print('set while status:$status');
     final id = await bind.mainGetMyId();
     if (id != _serverId.id) {
-     _serverId.id = id;
+      _serverId.id = id;
+      notifyListeners();
     }
-    notifyListeners();
   }
 
   changeStatue(String name, bool value) {
@@ -542,52 +536,50 @@ class ServerModel with ChangeNotifier {
   }
 
   void showLoginDialog(Client client) {
-    print('Sting login client:$client');
-    sendLoginResponse(client, true);
-    // parent.target?.dialogManager.show((setState, close, context) {
-    //   cancel() {
-    //     sendLoginResponse(client, false);
-    //     close();
-    //   }
-    //
-    //   submit() {
-    //     sendLoginResponse(client, true);
-    //     close();
-    //   }
-    //
-    //   return CustomAlertDialog(
-    //     title:
-    //         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-    //       Text(translate(
-    //           client.isFileTransfer ? "File Connection" : "Screen Connection")),
-    //       IconButton(
-    //           onPressed: () {
-    //             close();
-    //           },
-    //           icon: const Icon(Icons.close))
-    //     ]),
-    //     content: Column(
-    //       mainAxisSize: MainAxisSize.min,
-    //       mainAxisAlignment: MainAxisAlignment.center,
-    //       crossAxisAlignment: CrossAxisAlignment.start,
-    //       children: [
-    //         Text(translate("Do you accept?")),
-    //         ClientInfo(client),
-    //         Text(
-    //           translate("android_new_connection_tip"),
-    //           style: Theme.of(globalKey.currentContext!).textTheme.bodyMedium,
-    //         ),
-    //       ],
-    //     ),
-    //     actions: [
-    //       dialogButton("Dismiss", onPressed: cancel, isOutline: true),
-    //       if (approveMode != 'password')
-    //         dialogButton("Accept", onPressed: submit),
-    //     ],
-    //     onSubmit: submit,
-    //     onCancel: cancel,
-    //   );
-    // }, tag: getLoginDialogTag(client.id));
+    parent.target?.dialogManager.show((setState, close, context) {
+      cancel() {
+        sendLoginResponse(client, false);
+        close();
+      }
+
+      submit() {
+        sendLoginResponse(client, true);
+        close();
+      }
+
+      return CustomAlertDialog(
+        title:
+            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          Text(translate(
+              client.isFileTransfer ? "File Connection" : "Screen Connection")),
+          IconButton(
+              onPressed: () {
+                close();
+              },
+              icon: const Icon(Icons.close))
+        ]),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(translate("Do you accept?")),
+            ClientInfo(client),
+            Text(
+              translate("android_new_connection_tip"),
+              style: Theme.of(globalKey.currentContext!).textTheme.bodyMedium,
+            ),
+          ],
+        ),
+        actions: [
+          dialogButton("Dismiss", onPressed: cancel, isOutline: true),
+          if (approveMode != 'password')
+            dialogButton("Accept", onPressed: submit),
+        ],
+        onSubmit: submit,
+        onCancel: cancel,
+      );
+    }, tag: getLoginDialogTag(client.id));
   }
 
   scrollToBottom() {
@@ -702,6 +694,7 @@ class Client {
   bool file = false;
   bool restart = false;
   bool recording = false;
+  bool blockInput = false;
   bool disconnected = false;
   bool fromSwitch = false;
   bool inVoiceCall = false;
@@ -725,6 +718,7 @@ class Client {
     file = json['file'];
     restart = json['restart'];
     recording = json['recording'];
+    blockInput = json['block_input'];
     disconnected = json['disconnected'];
     fromSwitch = json['from_switch'];
     inVoiceCall = json['in_voice_call'];
@@ -745,6 +739,7 @@ class Client {
     data['file'] = file;
     data['restart'] = restart;
     data['recording'] = recording;
+    data['block_input'] = blockInput;
     data['disconnected'] = disconnected;
     data['from_switch'] = fromSwitch;
     return data;
@@ -758,11 +753,6 @@ class Client {
     } else {
       return ClientType.remote;
     }
-  }
-
-  @override
-  String toString() {
-    return 'Client{id: $id, authorized: $authorized, isFileTransfer: $isFileTransfer, portForward: $portForward, name: $name, peerId: $peerId, keyboard: $keyboard, clipboard: $clipboard, audio: $audio, file: $file, restart: $restart, recording: $recording, disconnected: $disconnected, fromSwitch: $fromSwitch, inVoiceCall: $inVoiceCall, incomingVoiceCall: $incomingVoiceCall, unreadChatMessageCount: $unreadChatMessageCount}';
   }
 }
 
